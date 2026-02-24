@@ -1,0 +1,44 @@
+# Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+lib/generated_plugin_registrant.dart
+**/generated_plugin_registrant.dart
+
+# Node/Backend
+backend/node_modules/
+backend/.env
+backend/serviceAccountKey.json
+backend/debug.log
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+
+# Android-specific
+android/**/generated/
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+android/app/*.pub
+android/app/src/main/res/raw/google_services.json
+
+# Misc
+.gemini/
+analyze_output.txt
+walkthrough.md
+task.md
+implementation_plan.md
