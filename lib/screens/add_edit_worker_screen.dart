@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/worker.dart';
 import '../providers/worker_provider.dart';
 
@@ -22,6 +24,9 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
   late final TextEditingController _heightCtrl;
   String _gender = 'Male';
   bool _saving = false;
+
+  File? _imageFile;
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -47,6 +52,24 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
 
   bool get isEditing => widget.worker != null;
 
+  Future<void> _pickImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (pickedFile != null) {
+        setState(() => _imageFile = File(pickedFile.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -65,9 +88,9 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
     if (isEditing) {
       success = await ref
           .read(workerProvider.notifier)
-          .updateWorker(widget.worker!.id!, data);
+          .updateWorker(widget.worker!.id!, data, imagePath: _imageFile?.path);
     } else {
-      success = await ref.read(workerProvider.notifier).addWorker(data);
+      success = await ref.read(workerProvider.notifier).addWorker(data, imagePath: _imageFile?.path);
     }
 
     if (mounted) {
@@ -87,6 +110,7 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(isEditing ? 'Edit Worker' : 'Add Worker')),
       body: SingleChildScrollView(
@@ -96,6 +120,39 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Avatar Picker
+              Center(
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: cs.primaryContainer,
+                      backgroundImage: _imageFile != null
+                          ? FileImage(_imageFile!)
+                          : (widget.worker?.photoUrl != null && widget.worker!.photoUrl!.isNotEmpty
+                              ? FileImage(File(widget.worker!.photoUrl!))
+                              : null) as ImageProvider?,
+                      child: (_imageFile == null && (widget.worker?.photoUrl == null || widget.worker!.photoUrl!.isEmpty))
+                          ? Icon(Icons.person, size: 50, color: cs.onPrimaryContainer)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: cs.primary,
+                        child: IconButton(
+                          icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                          onPressed: _pickImage,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              
               TextFormField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
@@ -123,7 +180,7 @@ class _AddEditWorkerScreenState extends ConsumerState<AddEditWorkerScreen> {
 
               // Gender dropdown
               DropdownButtonFormField<String>(
-                value: _gender,
+                initialValue: _gender,
                 decoration: const InputDecoration(
                   labelText: 'Gender',
                   prefixIcon: Icon(Icons.wc),

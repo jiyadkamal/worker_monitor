@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/monitoring_record.dart';
-import '../services/api_service.dart';
+import '../services/local_db_service.dart';
 
 // ── State ─────────────────────────────────────────────────
 class RecordState {
@@ -31,7 +31,7 @@ class RecordNotifier extends StateNotifier<RecordState> {
   Future<void> fetchRecords({String? workerId}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await ApiService.getRecords(workerId: workerId);
+      final data = await LocalDbService.getRecords(workerId: workerId);
       final list = data.map((j) => MonitoringRecord.fromJson(j)).toList();
       state = state.copyWith(isLoading: false, records: list);
     } catch (e) {
@@ -41,7 +41,7 @@ class RecordNotifier extends StateNotifier<RecordState> {
 
   Future<bool> addRecord(Map<String, dynamic> data) async {
     try {
-      await ApiService.createRecord(data);
+      await LocalDbService.createRecord(data);
       return true;
     } catch (e) {
       state = state.copyWith(error: e.toString());

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/worker_provider.dart';
 import 'add_edit_worker_screen.dart';
@@ -34,23 +36,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: cs.surface,
       appBar: AppBar(
         title: _isSearching
             ? TextField(
                 controller: _searchCtrl,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search by name…',
+                decoration: InputDecoration(
+                  hintText: 'Search workers...',
+                  hintStyle: TextStyle(color: cs.onSurfaceVariant),
                   border: InputBorder.none,
                   filled: false,
                 ),
                 onChanged: (v) =>
                     ref.read(workerProvider.notifier).fetchWorkers(search: v),
               )
-            : const Text('Workers'),
+            : Text(
+                'Safety Monitor',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                ),
+              ),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            icon: Icon(_isSearching ? Icons.close : Icons.search_rounded),
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -62,10 +72,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
             onPressed: () => ref.read(authProvider.notifier).logout(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -78,8 +89,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ref.read(workerProvider.notifier).fetchWorkers();
           }
         },
-        icon: const Icon(Icons.person_add),
+        icon: const Icon(Icons.person_add_alt_1_rounded),
         label: const Text('Add Worker'),
+        elevation: 4,
       ),
       body: workerState.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -88,13 +100,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.people_outline,
-                          size: 64, color: cs.onSurfaceVariant),
-                      const SizedBox(height: 12),
-                      Text('No workers yet',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text('Tap + to add your first worker',
+                      Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.people_alt_outlined,
+                            size: 80, color: cs.primary),
+                      ),
+                      const SizedBox(height: 24),
+                      Text('No Workers Found',
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          )),
+                      const SizedBox(height: 8),
+                      Text('Add your team members to start monitoring.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(color: cs.onSurfaceVariant)),
                     ],
                   ),
@@ -104,43 +127,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ref.read(workerProvider.notifier).fetchWorkers(),
                   child: ListView.builder(
                     padding: const EdgeInsets.only(
-                        left: 16, right: 16, top: 8, bottom: 88),
+                        left: 20, right: 20, top: 12, bottom: 100),
                     itemCount: workerState.workers.length,
                     itemBuilder: (context, index) {
                       final w = workerState.workers[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor: cs.primaryContainer,
-                            child: Text(
-                              w.name.isNotEmpty
-                                  ? w.name[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                  color: cs.onPrimaryContainer,
-                                  fontWeight: FontWeight.bold),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Card(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      WorkerDetailScreen(worker: w),
+                                ),
+                              );
+                              ref.read(workerProvider.notifier).fetchWorkers();
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  // ── Avatar ─────────────────────
+                                  Hero(
+                                    tag: 'avatar-${w.id}',
+                                    child: CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor: cs.primary.withValues(alpha: 0.1),
+                                      backgroundImage: (w.photoUrl != null && w.photoUrl!.isNotEmpty)
+                                          ? FileImage(File(w.photoUrl!))
+                                          : null,
+                                      child: (w.photoUrl == null || w.photoUrl!.isEmpty)
+                                          ? Text(
+                                              w.name.isNotEmpty ? w.name[0].toUpperCase() : '?',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                color: cs.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  
+                                  // ── Info ───────────────────────
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          w.name,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${w.gender} • ${w.age} years • BMI ${w.bmi}',
+                                          style: TextStyle(
+                                            color: cs.onSurfaceVariant,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  
+                                  // ── Arrow ──────────────────────
+                                  Icon(Icons.arrow_forward_ios_rounded,
+                                      size: 16, color: cs.outlineVariant),
+                                ],
+                              ),
                             ),
                           ),
-                          title: Text(w.name,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                              '${w.gender} • Age ${w.age} • BMI ${w.bmi}'),
-                          trailing:
-                              const Icon(Icons.chevron_right, size: 20),
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    WorkerDetailScreen(worker: w),
-                              ),
-                            );
-                            ref.read(workerProvider.notifier).fetchWorkers();
-                          },
                         ),
                       );
                     },

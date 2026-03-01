@@ -1,7 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:excel/excel.dart' as xl;
+import 'package:path_provider/path_provider.dart';
 import '../models/worker.dart';
+import '../models/monitoring_record.dart';
 import '../providers/record_provider.dart';
+import '../services/email_service.dart';
+import '../services/local_db_service.dart';
 
 class AddRecordScreen extends ConsumerStatefulWidget {
   final Worker worker;
@@ -53,6 +60,62 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     return 'Extreme';
   }
 
+  /// Generate an Excel file with the worker's full record history
+  Future<String?> _generateExcelAttachment() async {
+    try {
+      final allRecordsData = await LocalDbService.getRecords(workerId: widget.worker.id);
+      final allRecords = allRecordsData.map((j) => MonitoringRecord.fromJson(j)).toList();
+      if (allRecords.isEmpty) return null;
+
+      final excel = xl.Excel.createExcel();
+      final sheet = excel['Records'];
+
+      final headers = [
+        'Date', 'Wind Speed', 'Black Ball Temp', 'Ambient Temp',
+        'Humidity', 'Activity', 'Pulse', 'Clothing',
+        'Work Duration', 'Heat Stress Index', 'Risk Level',
+      ];
+      for (var i = 0; i < headers.length; i++) {
+        sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = xl.TextCellValue(headers[i]);
+      }
+
+      for (var r = 0; r < allRecords.length; r++) {
+        final rec = allRecords[r];
+        final row = r + 1;
+        final date = rec.createdAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(rec.createdAt!) : '';
+        final values = [
+          date, rec.windSpeed, rec.blackBallTemp, rec.ambientTemp,
+          rec.humidity, rec.activityIntensity, rec.pulse, rec.clothing,
+          rec.workDuration, rec.heatStressIndex, rec.riskLevel,
+        ];
+        for (var c = 0; c < values.length; c++) {
+          final v = values[c];
+          if (v is double) {
+            sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row)).value = xl.DoubleCellValue(v);
+          } else {
+            sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row)).value = xl.TextCellValue(v.toString());
+          }
+        }
+      }
+
+      if (excel.sheets.containsKey('Sheet1')) {
+        excel.delete('Sheet1');
+      }
+
+      final dir = await getTemporaryDirectory();
+      final filename = '${widget.worker.name.replaceAll(' ', '_')}_history.xlsx';
+      final file = File('${dir.path}/$filename');
+      final bytes = excel.encode();
+      if (bytes != null) {
+        await file.writeAsBytes(bytes);
+        return file.path;
+      }
+    } catch (e) {
+      debugPrint('Failed to generate Excel attachment: $e');
+    }
+    return null;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -80,6 +143,32 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
     if (mounted) {
       setState(() => _saving = false);
       if (ok) {
+        // Send email notification with Excel attachment (fire-and-forget)
+        if (widget.worker.email.isNotEmpty) {
+          final record = MonitoringRecord(
+            workerId: widget.worker.id ?? '',
+            windSpeed: data['windSpeed'] as double,
+            blackBallTemp: data['blackBallTemp'] as double,
+            ambientTemp: data['ambientTemp'] as double,
+            humidity: data['humidity'] as double,
+            activityIntensity: data['activityIntensity'] as String,
+            pulse: data['pulse'] as String,
+            clothing: data['clothing'] as String,
+            workDuration: data['workDuration'] as double,
+            heatStressIndex: hsi,
+            riskLevel: risk,
+          );
+          // Generate Excel with full history, then send email
+          _generateExcelAttachment().then((excelPath) {
+            EmailService.sendRecordEmail(
+              widget.worker.email,
+              widget.worker.name,
+              record,
+              excelFilePath: excelPath,
+            );
+          });
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Record saved — Risk: $risk'),
           backgroundColor: _riskColor(risk),
@@ -199,7 +288,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
                       ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _activity,
+                initialValue: _activity,
                 decoration: const InputDecoration(
                   labelText: 'Activity Intensity',
                   prefixIcon: Icon(Icons.directions_run),
@@ -212,6 +301,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _pulseCtrl,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Pulse (bpm)',
                   prefixIcon: Icon(Icons.favorite_outline),
@@ -221,7 +311,7 @@ class _AddRecordScreenState extends ConsumerState<AddRecordScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _clothing,
+                initialValue: _clothing,
                 decoration: const InputDecoration(
                   labelText: 'Clothing',
                   prefixIcon: Icon(Icons.checkroom),

@@ -7,6 +7,7 @@ class Worker {
   final double weight;
   final double height;
   final double bmi;
+  final String? photoUrl;
 
   Worker({
     this.id,
@@ -17,6 +18,7 @@ class Worker {
     required this.weight,
     required this.height,
     required this.bmi,
+    this.photoUrl,
   });
 
   factory Worker.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Worker {
       weight: (json['weight'] as num).toDouble(),
       height: (json['height'] as num).toDouble(),
       bmi: (json['bmi'] as num).toDouble(),
+      photoUrl: json['photoUrl'],
     );
   }
 
@@ -40,6 +43,7 @@ class Worker {
       'age': age,
       'weight': weight,
       'height': height,
+      'photoUrl': photoUrl,
     };
   }
 }

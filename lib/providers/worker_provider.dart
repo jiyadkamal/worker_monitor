@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/worker.dart';
-import '../services/api_service.dart';
+import '../services/local_db_service.dart';
 
 // ── State ─────────────────────────────────────────────────
 class WorkerState {
@@ -30,7 +30,7 @@ class WorkerNotifier extends StateNotifier<WorkerState> {
   Future<void> fetchWorkers({String? search}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await ApiService.getWorkers(search: search);
+      final data = await LocalDbService.getWorkers(search: search);
       final list = data.map((j) => Worker.fromJson(j)).toList();
       state = state.copyWith(isLoading: false, workers: list);
     } catch (e) {
@@ -38,9 +38,9 @@ class WorkerNotifier extends StateNotifier<WorkerState> {
     }
   }
 
-  Future<bool> addWorker(Map<String, dynamic> data) async {
+  Future<bool> addWorker(Map<String, dynamic> data, {String? imagePath}) async {
     try {
-      await ApiService.createWorker(data);
+      await LocalDbService.createWorker(data, imagePath: imagePath);
       await fetchWorkers();
       return true;
     } catch (e) {
@@ -49,9 +49,9 @@ class WorkerNotifier extends StateNotifier<WorkerState> {
     }
   }
 
-  Future<bool> updateWorker(String id, Map<String, dynamic> data) async {
+  Future<bool> updateWorker(String id, Map<String, dynamic> data, {String? imagePath}) async {
     try {
-      await ApiService.updateWorker(id, data);
+      await LocalDbService.updateWorker(id, data, imagePath: imagePath);
       await fetchWorkers();
       return true;
     } catch (e) {
@@ -62,7 +62,7 @@ class WorkerNotifier extends StateNotifier<WorkerState> {
 
   Future<bool> deleteWorker(String id) async {
     try {
-      await ApiService.deleteWorker(id);
+      await LocalDbService.deleteWorker(id);
       await fetchWorkers();
       return true;
     } catch (e) {

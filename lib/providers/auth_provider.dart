@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/supervisor.dart';
-import '../services/api_service.dart';
+import '../services/local_db_service.dart';
 
 // ── State ─────────────────────────────────────────────────
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
@@ -30,16 +30,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
   Future<void> checkAuth() async {
-    final hasToken = await ApiService.hasToken();
+    final hasSession = await LocalDbService.hasSession();
     state = AuthState(
-      status: hasToken ? AuthStatus.authenticated : AuthStatus.unauthenticated,
+      status: hasSession ? AuthStatus.authenticated : AuthStatus.unauthenticated,
     );
   }
 
   Future<void> register(String name, String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      final data = await ApiService.register(name, email, password);
+      final data = await LocalDbService.register(name, email, password);
       final sup = Supervisor.fromJson(data['supervisor']);
       state = AuthState(status: AuthStatus.authenticated, supervisor: sup);
     } on AuthException catch (e) {
@@ -52,7 +52,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      final data = await ApiService.login(email, password);
+      final data = await LocalDbService.login(email, password);
       final sup = Supervisor.fromJson(data['supervisor']);
       state = AuthState(status: AuthStatus.authenticated, supervisor: sup);
     } on AuthException catch (e) {
@@ -63,7 +63,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await ApiService.clearToken();
+    await LocalDbService.clearSession();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }

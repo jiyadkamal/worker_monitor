@@ -4,8 +4,12 @@ import 'config/theme.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/database_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize the local SQLite database
+  await DatabaseHelper.instance.database;
   runApp(const ProviderScope(child: WorkerMonitorApp()));
 }
 

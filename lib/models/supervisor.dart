@@ -7,7 +7,7 @@ class Supervisor {
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
     return Supervisor(
-      id: json['id'] ?? json['_id'] ?? '',
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
       name: json['name'] ?? '',
       email: json['email'] ?? '',
     );
